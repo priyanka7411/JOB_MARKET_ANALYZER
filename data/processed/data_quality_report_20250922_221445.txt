@@ -1,0 +1,68 @@
+GENERATING DATA QUALITY REPORT
+============================================================
+Analyzing: jobs_with_nlp_20250922_204813.csv
+Dataset shape: (416, 24)
+
+BASIC STATISTICS
+------------------------------
+Total records: 416
+Total columns: 24
+Memory usage: 0.78 MB
+
+DATA COMPLETENESS ANALYSIS
+------------------------------
+              Column  Missing_Count  Missing_Percentage  Complete_Records
+6             salary            416          100.000000                 0
+10    company_rating             96           23.076923               320
+5     experience_max              2            0.480769               414
+4     experience_min              2            0.480769               414
+7        description              1            0.240385               415
+3           location              0            0.000000               416
+1              title              0            0.000000               416
+2            company              0            0.000000               416
+0             job_id              0            0.000000               416
+8   skills_extracted              0            0.000000               416
+
+CRITICAL FIELDS ANALYSIS
+------------------------------
+title: 416/416 (100.0% complete)
+company: 416/416 (100.0% complete)
+location: 416/416 (100.0% complete)
+skills_all: 416/416 (100.0% complete)
+
+SKILLS DATA QUALITY
+------------------------------
+Jobs with skills: 416/416 (100.0%)
+Average skills per job: 9.0
+Max skills in a job: 17
+Jobs with 0 skills: 0
+Jobs with 5+ skills: 409
+
+EXPERIENCE DATA QUALITY
+------------------------------
+experience_min:
+  Valid entries: 414/416 (99.5%)
+  Range: 0.0 - 20.0 years
+  Average: 4.0 years
+experience_max:
+  Valid entries: 414/416 (99.5%)
+  Range: 1.0 - 26.0 years
+  Average: 7.7 years
+
+DATA CONSISTENCY CHECKS
+------------------------------
+Duplicate job IDs: 0
+Invalid experience ranges (max < min): 0
+
+OVERALL DATA QUALITY SCORE
+------------------------------
+Completeness score: 94.8%
+Critical fields score: 100.0%
+Consistency score: 100.0%
+Overall quality score: 98.3%
+
+QUALITY IMPROVEMENT RECOMMENDATIONS
+------------------------------
+• Consider removing or improving fields with >50% missing data: salary
+
+Data quality report generation completed.

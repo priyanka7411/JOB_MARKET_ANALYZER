@@ -38,7 +38,7 @@ class ProductionNaukriScraper:
         
         # Setup logging
         self.logger = setup_logging()
-        self.logger.info("🤖 Production Naukri Scraper initialized")
+        self.logger.info(" Production Naukri Scraper initialized")
         
     def setup_driver(self) -> bool:
         """Setup Chrome WebDriver with anti-detection measures"""

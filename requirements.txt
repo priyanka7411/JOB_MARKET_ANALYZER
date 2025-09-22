@@ -4,3 +4,19 @@ webdriver-manager
 requests
 python-dotenv
 pandas
+# NLP Libraries
+spacy
+transformers
+torch
+scikit-learn
+
+# Database & Processing
+duckdb
+polars
+pydantic
+
+# Text Processing
+nltk
+textblob
+fuzzywuzzy
+python-levenshtein

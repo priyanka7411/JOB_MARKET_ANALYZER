@@ -44,3 +44,45 @@ for dir_path in [RAW_DATA_DIR, PROCESSED_DATA_DIR]:
 print(" Enhanced configuration loaded successfully!")
 print(f" Will search for: {len(JOB_KEYWORDS)} job types")
 print(f" Output files: {OUTPUT_CSV.name}")
+
+# Database settings
+DATABASE_PATH = DATA_DIR / "job_market.duckdb"
+PROCESSED_JOBS_TABLE = "processed_jobs"
+SKILLS_TABLE = "extracted_skills"
+COMPANIES_TABLE = "company_profiles"
+
+# NLP settings
+SPACY_MODEL = "en_core_web_sm"
+MIN_SKILL_LENGTH = 2
+MAX_SKILL_LENGTH = 30
+SKILL_CONFIDENCE_THRESHOLD = 0.6
+
+# Skill categories for classification
+SKILL_CATEGORIES = {
+    'programming_languages': [
+        'python', 'java', 'javascript', 'typescript', 'c++', 'c#', 'go', 'rust', 
+        'scala', 'kotlin', 'swift', 'php', 'ruby', 'r', 'matlab', 'sql'
+    ],
+    'frameworks_libraries': [
+        'react', 'angular', 'vue', 'node.js', 'express', 'django', 'flask', 
+        'spring', 'tensorflow', 'pytorch', 'scikit-learn', 'pandas', 'numpy'
+    ],
+    'databases': [
+        'mysql', 'postgresql', 'mongodb', 'redis', 'elasticsearch', 'cassandra',
+        'oracle', 'sqlite', 'dynamodb', 'neo4j'
+    ],
+    'cloud_platforms': [
+        'aws', 'azure', 'gcp', 'google cloud', 'docker', 'kubernetes', 
+        'terraform', 'jenkins', 'gitlab', 'github actions'
+    ],
+    'data_science': [
+        'machine learning', 'deep learning', 'nlp', 'computer vision', 
+        'data analysis', 'statistics', 'data mining', 'big data', 'etl'
+    ],
+    'soft_skills': [
+        'communication', 'leadership', 'teamwork', 'problem solving',
+        'project management', 'agile', 'scrum'
+    ]
+}
+
+print(" Enhanced configuration with NLP settings loaded!")
