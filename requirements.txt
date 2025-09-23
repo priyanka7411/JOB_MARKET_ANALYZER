@@ -20,3 +20,23 @@ nltk
 textblob
 fuzzywuzzy
 python-levenshtein
+
+# Advanced Visualization
+streamlit
+plotly
+dash
+bokeh
+altair
+
+# Map Visualizations  
+folium
+geopandas
+
+# Enhanced Styling
+streamlit-option-menu
+streamlit-aggrid
+streamlit-plotly-events
+
+# Image Processing for Charts
+pillow
+kaleido
