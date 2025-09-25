@@ -44,6 +44,12 @@ class AdvancedJobMarketCharts:
         # Prepare data for 3D visualization
         skill_df = skill_df.head(50)  # Top 50 skills
         
+        # Check if required columns exist
+        required_cols = ['job_count', 'company_count', 'demand_percentage', 'skill_name']
+        for col in required_cols:
+            if col not in skill_df.columns:
+                return go.Figure().add_annotation(text=f"Missing required column: {col}")
+        
         fig = go.Figure(data=[go.Scatter3d(
             x=skill_df['job_count'],
             y=skill_df['company_count'], 
@@ -104,8 +110,9 @@ class AdvancedJobMarketCharts:
             if isinstance(skills, list) and len(skills) > 1:
                 for i, skill1 in enumerate(skills):
                     for skill2 in skills[i+1:]:
-                        pair = tuple(sorted([skill1.lower(), skill2.lower()]))
-                        skill_pairs[pair] = skill_pairs.get(pair, 0) + 1
+                        if skill1 and skill2:  # Check for non-empty skills
+                            pair = tuple(sorted([skill1.lower(), skill2.lower()]))
+                            skill_pairs[pair] = skill_pairs.get(pair, 0) + 1
         
         # Get top skill pairs
         top_pairs = sorted(skill_pairs.items(), key=lambda x: x[1], reverse=True)[:30]
@@ -142,7 +149,7 @@ class AdvancedJobMarketCharts:
                 x=[x0, x1, None],
                 y=[y0, y1, None],
                 mode='lines',
-                line=dict(width=count/5, color='lightgray'),
+                line=dict(width=max(count/5, 0.5), color='lightgray'),
                 hoverinfo='none',
                 showlegend=False
             )
@@ -199,32 +206,14 @@ class AdvancedJobMarketCharts:
         if jobs_df.empty or 'scraped_at' not in jobs_df.columns:
             return go.Figure().add_annotation(text="No temporal data available for animation")
         
-        # Prepare temporal data
-        jobs_df['date'] = pd.to_datetime(jobs_df['scraped_at']).dt.date
-        
-        # Get top skills
-        all_skills = []
-        for idx, row in jobs_df.iterrows():
-            skills = row.get('skills_all', [])
-            if isinstance(skills, str):
-                try:
-                    skills = json.loads(skills) if skills.startswith('[') else []
-                except:
-                    skills = []
-            if isinstance(skills, list):
-                all_skills.extend([s.lower() for s in skills])
-        
-        top_skills = pd.Series(all_skills).value_counts().head(10).index.tolist()
-        
-        # Create temporal skill data
-        dates = sorted(jobs_df['date'].unique())
-        skill_timeline = []
-        
-        for date in dates:
-            date_jobs = jobs_df[jobs_df['date'] == date]
-            date_skills = []
+        try:
+            # Prepare temporal data
+            jobs_df_copy = jobs_df.copy()
+            jobs_df_copy['date'] = pd.to_datetime(jobs_df_copy['scraped_at']).dt.date
             
-            for idx, row in date_jobs.iterrows():
+            # Get top skills
+            all_skills = []
+            for idx, row in jobs_df_copy.iterrows():
                 skills = row.get('skills_all', [])
                 if isinstance(skills, str):
                     try:
@@ -232,46 +221,73 @@ class AdvancedJobMarketCharts:
                     except:
                         skills = []
                 if isinstance(skills, list):
-                    date_skills.extend([s.lower() for s in skills])
+                    all_skills.extend([s.lower() for s in skills if s])
             
-            skill_counts = pd.Series(date_skills).value_counts()
+            if not all_skills:
+                return go.Figure().add_annotation(text="No skills data found")
             
-            for skill in top_skills:
-                skill_timeline.append({
-                    'date': date,
-                    'skill': skill,
-                    'count': skill_counts.get(skill, 0),
-                    'percentage': (skill_counts.get(skill, 0) / len(date_jobs) * 100) if len(date_jobs) > 0 else 0
-                })
-        
-        timeline_df = pd.DataFrame(skill_timeline)
-        
-        if timeline_df.empty:
-            return go.Figure().add_annotation(text="Insufficient temporal data")
-        
-        # Create animated bar chart
-        fig = px.bar(
-            timeline_df,
-            x='skill',
-            y='count',
-            animation_frame='date',
-            color='skill',
-            title='📈 Skill Demand Evolution Over Time',
-            labels={'count': 'Number of Mentions', 'skill': 'Skills'},
-            color_discrete_sequence=px.colors.qualitative.Set3
-        )
-        
-        fig.update_layout(
-            xaxis_tickangle=-45,
-            height=500,
-            showlegend=False
-        )
-        
-        # Update animation settings
-        fig.layout.updatemenus[0].buttons[0].args[1]['frame']['duration'] = 1000
-        fig.layout.updatemenus[0].buttons[0].args[1]['transition']['duration'] = 500
-        
-        return fig
+            top_skills = pd.Series(all_skills).value_counts().head(10).index.tolist()
+            
+            # Create temporal skill data
+            dates = sorted(jobs_df_copy['date'].unique())
+            skill_timeline = []
+            
+            for date in dates:
+                date_jobs = jobs_df_copy[jobs_df_copy['date'] == date]
+                date_skills = []
+                
+                for idx, row in date_jobs.iterrows():
+                    skills = row.get('skills_all', [])
+                    if isinstance(skills, str):
+                        try:
+                            skills = json.loads(skills) if skills.startswith('[') else []
+                        except:
+                            skills = []
+                    if isinstance(skills, list):
+                        date_skills.extend([s.lower() for s in skills if s])
+                
+                skill_counts = pd.Series(date_skills).value_counts()
+                
+                for skill in top_skills:
+                    skill_timeline.append({
+                        'date': date,
+                        'skill': skill,
+                        'count': skill_counts.get(skill, 0),
+                        'percentage': (skill_counts.get(skill, 0) / len(date_jobs) * 100) if len(date_jobs) > 0 else 0
+                    })
+            
+            timeline_df = pd.DataFrame(skill_timeline)
+            
+            if timeline_df.empty:
+                return go.Figure().add_annotation(text="Insufficient temporal data")
+            
+            # Create animated bar chart
+            fig = px.bar(
+                timeline_df,
+                x='skill',
+                y='count',
+                animation_frame='date',
+                color='skill',
+                title='📈 Skill Demand Evolution Over Time',
+                labels={'count': 'Number of Mentions', 'skill': 'Skills'},
+                color_discrete_sequence=px.colors.qualitative.Set3
+            )
+            
+            fig.update_layout(
+                xaxis_tickangle=-45,
+                height=500,
+                showlegend=False
+            )
+            
+            # Update animation settings if buttons exist
+            if hasattr(fig.layout, 'updatemenus') and fig.layout.updatemenus:
+                fig.layout.updatemenus[0].buttons[0].args[1]['frame']['duration'] = 1000
+                fig.layout.updatemenus[0].buttons[0].args[1]['transition']['duration'] = 500
+            
+            return fig
+            
+        except Exception as e:
+            return go.Figure().add_annotation(text=f"Animation creation failed: {str(e)}")
     
     def create_skill_category_sunburst(self, jobs_df: pd.DataFrame) -> go.Figure:
         """Create sunburst chart for skill categories"""
@@ -295,8 +311,12 @@ class AdvancedJobMarketCharts:
                         if category not in category_data:
                             category_data[category] = {}
                         for skill in skills:
-                            skill_lower = skill.lower()
-                            category_data[category][skill_lower] = category_data[category].get(skill_lower, 0) + 1
+                            if skill:  # Check for non-empty skills
+                                skill_lower = skill.lower()
+                                category_data[category][skill_lower] = category_data[category].get(skill_lower, 0) + 1
+        
+        if not category_data:
+            return go.Figure().add_annotation(text="No categorized skills data found")
         
         # Prepare sunburst data
         ids = ['Skills']
@@ -307,25 +327,29 @@ class AdvancedJobMarketCharts:
         
         # Add categories
         for category, skills in category_data.items():
-            category_total = sum(skills.values())
-            category_id = f"Skills/{category}"
-            
-            ids.append(category_id)
-            labels.append(category.replace('_', ' ').title())
-            parents.append('Skills')
-            values.append(category_total)
-            colors.append(self.skill_colors.get(category, '#CCCCCC'))
-            
-            # Add top skills in each category
-            top_category_skills = sorted(skills.items(), key=lambda x: x[1], reverse=True)[:5]
-            for skill, count in top_category_skills:
-                skill_id = f"{category_id}/{skill}"
+            if skills:  # Only add categories with skills
+                category_total = sum(skills.values())
+                category_id = f"Skills/{category}"
                 
-                ids.append(skill_id)
-                labels.append(skill.title())
-                parents.append(category_id)
-                values.append(count)
-                colors.append('#E8E8E8')
+                ids.append(category_id)
+                labels.append(category.replace('_', ' ').title())
+                parents.append('Skills')
+                values.append(category_total)
+                colors.append(self.skill_colors.get(category, '#CCCCCC'))
+                
+                # Add top skills in each category
+                top_category_skills = sorted(skills.items(), key=lambda x: x[1], reverse=True)[:5]
+                for skill, count in top_category_skills:
+                    skill_id = f"{category_id}/{skill}"
+                    
+                    ids.append(skill_id)
+                    labels.append(skill.title())
+                    parents.append(category_id)
+                    values.append(count)
+                    colors.append('#E8E8E8')
+        
+        if len(ids) <= 1:
+            return go.Figure().add_annotation(text="Insufficient data for sunburst visualization")
         
         fig = go.Figure(go.Sunburst(
             ids=ids,
@@ -366,7 +390,7 @@ class AdvancedJobMarketCharts:
             salary_str = str(row.get('salary', ''))
             salary_value = None
             
-            # Simple salary extraction (extend this as needed)
+            # Simple salary extraction
             import re
             salary_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:lakh|lac)', salary_str.lower())
             if salary_match:
@@ -382,10 +406,11 @@ class AdvancedJobMarketCharts:
                 
                 if isinstance(skills, list):
                     for skill in skills:
-                        salary_skill_data.append({
-                            'skill': skill.lower(),
-                            'salary': salary_value
-                        })
+                        if skill:  # Check for non-empty skills
+                            salary_skill_data.append({
+                                'skill': skill.lower(),
+                                'salary': salary_value
+                            })
         
         if not salary_skill_data:
             return go.Figure().add_annotation(text="No salary data available for analysis")
@@ -437,6 +462,9 @@ class AdvancedJobMarketCharts:
         if jobs_df.empty:
             return go.Figure().add_annotation(text="No data available for company-skill matrix")
         
+        if 'company' not in jobs_df.columns:
+            return go.Figure().add_annotation(text="No company data available")
+        
         # Get top companies and skills
         top_companies = jobs_df['company'].value_counts().head(15).index.tolist()
         
@@ -450,7 +478,10 @@ class AdvancedJobMarketCharts:
                 except:
                     skills = []
             if isinstance(skills, list):
-                all_skills.extend([s.lower() for s in skills])
+                all_skills.extend([s.lower() for s in skills if s])
+        
+        if not all_skills:
+            return go.Figure().add_annotation(text="No skills data available")
         
         top_skills = pd.Series(all_skills).value_counts().head(20).index.tolist()
         
@@ -469,7 +500,7 @@ class AdvancedJobMarketCharts:
                     except:
                         skills = []
                 if isinstance(skills, list):
-                    company_skills.extend([s.lower() for s in skills])
+                    company_skills.extend([s.lower() for s in skills if s])
             
             company_skill_counts = pd.Series(company_skills).value_counts()
             
@@ -481,6 +512,9 @@ class AdvancedJobMarketCharts:
                 row_data.append(normalized)
             
             matrix_data.append(row_data)
+        
+        if not matrix_data:
+            return go.Figure().add_annotation(text="Insufficient data for company-skill matrix")
         
         fig = go.Figure(data=go.Heatmap(
             z=matrix_data,
@@ -511,41 +545,54 @@ class AdvancedJobMarketCharts:
         if skill_demand_df.empty:
             return go.Figure().add_annotation(text="No skill demand data available")
         
+        # Check required columns
+        required_cols = ['job_count', 'demand_percentage', 'skill_name']
+        for col in required_cols:
+            if col not in skill_demand_df.columns:
+                return go.Figure().add_annotation(text=f"Missing required column: {col}")
+        
         # Calculate skill rarity (inverse of job count)
         skill_demand_df = skill_demand_df.copy()
         skill_demand_df['rarity_score'] = 1 / (skill_demand_df['job_count'] + 1)  # +1 to avoid division by zero
         
         # Use average company rating as proxy for "value"
-        skill_demand_df['value_score'] = skill_demand_df.get('avg_company_rating', 3.0)
+        if 'avg_company_rating' in skill_demand_df.columns:
+            skill_demand_df['value_score'] = skill_demand_df['avg_company_rating'].fillna(3.0)
+        else:
+            # Fallback: use demand percentage as value
+            skill_demand_df['value_score'] = skill_demand_df['demand_percentage'] / 10  # Scale down for better visualization
         
         fig = px.scatter(
             skill_demand_df.head(50),
             x='rarity_score',
             y='value_score',
             size='demand_percentage',
-            color='skill_category',
+            color='skill_category' if 'skill_category' in skill_demand_df.columns else None,
             hover_name='skill_name',
             title='💎 Skill Rarity vs Market Value Analysis',
             labels={
                 'rarity_score': 'Skill Rarity (Higher = More Rare)',
-                'value_score': 'Market Value (Company Rating)',
+                'value_score': 'Market Value',
                 'demand_percentage': 'Demand %'
             },
-            color_discrete_map=self.skill_colors
+            color_discrete_map=self.skill_colors if 'skill_category' in skill_demand_df.columns else None
         )
         
         # Add quadrant lines
-        median_rarity = skill_demand_df['rarity_score'].median()
-        median_value = skill_demand_df['value_score'].median()
-        
-        fig.add_hline(y=median_value, line_dash="dash", annotation_text="Median Value")
-        fig.add_vline(x=median_rarity, line_dash="dash", annotation_text="Median Rarity")
-        
-        # Add quadrant annotations
-        fig.add_annotation(x=median_rarity * 1.5, y=median_value * 1.1, text="💎 Rare & Valuable", showarrow=False)
-        fig.add_annotation(x=median_rarity * 0.5, y=median_value * 1.1, text="🔥 Common & Valuable", showarrow=False)
-        fig.add_annotation(x=median_rarity * 1.5, y=median_value * 0.9, text="🎯 Niche Market", showarrow=False)
-        fig.add_annotation(x=median_rarity * 0.5, y=median_value * 0.9, text="📚 Basic Skills", showarrow=False)
+        try:
+            median_rarity = skill_demand_df['rarity_score'].median()
+            median_value = skill_demand_df['value_score'].median()
+            
+            fig.add_hline(y=median_value, line_dash="dash", annotation_text="Median Value")
+            fig.add_vline(x=median_rarity, line_dash="dash", annotation_text="Median Rarity")
+            
+            # Add quadrant annotations
+            fig.add_annotation(x=median_rarity * 1.5, y=median_value * 1.1, text="💎 Rare & Valuable", showarrow=False)
+            fig.add_annotation(x=median_rarity * 0.5, y=median_value * 1.1, text="🔥 Common & Valuable", showarrow=False)
+            fig.add_annotation(x=median_rarity * 1.5, y=median_value * 0.9, text="🎯 Niche Market", showarrow=False)
+            fig.add_annotation(x=median_rarity * 0.5, y=median_value * 0.9, text="📚 Basic Skills", showarrow=False)
+        except Exception:
+            pass  # Skip quadrant lines if calculation fails
         
         fig.update_layout(height=600)
         
@@ -557,22 +604,24 @@ def main():
     charts = AdvancedJobMarketCharts()
     
     # Load sample data for testing
-    from pathlib import Path
-    processed_dir = Path(__file__).parent.parent.parent / "data" / "processed"
-    
-    # Load skill demand data
-    skill_files = list(processed_dir.glob("skill_demand_analysis_*.csv"))
-    if skill_files:
-        latest_skill_file = max(skill_files, key=lambda x: x.stat().st_mtime)
-        skill_df = pd.read_csv(latest_skill_file)
+    try:
+        processed_dir = Path(__file__).parent.parent.parent / "data" / "processed"
         
-        # Create 3D landscape
-        fig_3d = charts.create_3d_skill_landscape(skill_df)
-        fig_3d.show()
-        
-        print("Advanced charts library ready!")
-    else:
-        print(" No skill demand data found. Run database integration first.")
+        # Load skill demand data
+        skill_files = list(processed_dir.glob("skill_demand_analysis_*.csv"))
+        if skill_files:
+            latest_skill_file = max(skill_files, key=lambda x: x.stat().st_mtime)
+            skill_df = pd.read_csv(latest_skill_file)
+            
+            # Create 3D landscape
+            fig_3d = charts.create_3d_skill_landscape(skill_df)
+            fig_3d.show()
+            
+            print("✅ Advanced charts library ready!")
+        else:
+            print("❌ No skill demand data found. Run database integration first.")
+    except Exception as e:
+        print(f"❌ Error testing charts: {e}")
 
 if __name__ == "__main__":
     main()
